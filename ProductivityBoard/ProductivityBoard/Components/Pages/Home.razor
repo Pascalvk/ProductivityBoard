@@ -1,0 +1,252 @@
+﻿@rendermode InteractiveServer
+@inject HttpClient Http
+@using ProductivityBoard.Classes.API
+@page "/"
+
+<link href="css/board.css" rel="stylesheet" />
+<link href="css/boardoptions.css" rel="stylesheet" />
+<link href="css/dropdownmenu.css" rel="stylesheet" />
+
+<PageTitle>Home</PageTitle>
+
+<div class="split-container">
+    <div class="left-bar">
+        <div>
+            <div>
+                @if (usersAvailable == null)
+                {
+                    <p><em>Loading...</em></p>
+                }
+                else
+                {
+                    <label class="labelChange"> Select a user:</label>
+                    <select @onchange="(e) => UpdateSelectedUser(e)">
+                        <option disabled selected>-- Select a user --</option>
+                        @foreach (var user in usersAvailable)
+                        {
+                            <option>@user.UserEmail</option>
+                        }
+
+                    </select>
+                }
+
+            </div>
+            <div class="space"> </div>
+            <div>
+                @if (boardsAvailable == null)
+                {
+                    <label class="labelChange"> Select a board:</label>
+                }
+                else
+                {
+                    <label class="labelChange"> Select a board:</label>
+                    <select @onchange="(e) => UpdateSelectedBoard(e)">
+                        <option disabled selected>-- Select a board --</option>
+                        @foreach (var board in boardsAvailable)
+                        {
+                            <option>@board.BoardName</option>
+                        }
+                    </select>
+                }
+            </div>
+            <div class="space"> </div>
+            @if (selectedBoard == null)
+            {
+
+            }
+            else
+            {
+                <div class="post-it">
+                    <div class="title">
+                        <input @bind="postTitle" placeholder="Post-it - Title" />
+                    </div>
+                    <div class="content">
+                        <textarea @bind=postDescription rows="10" cols="25" placeholder="Post-it Description"></textarea>
+                    </div>
+                    <div>
+                        <label>Select status: </label>
+                        <select @bind="postStatus">
+                            <option disabled selected>Status</option>
+                            <option>Backlog</option>
+                            <option>ToDo</option>
+                            <option>Working</option>
+                            <option>Done</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="space"> </div>
+                <div>
+                    <button class="button-43" @onclick="CreateNewItemButton">Create new Post-It!</button>
+                </div>
+            }
+        </div>
+    </div>
+    <div class="right-content">
+        <div>
+            @if (selectedBoard == null)
+            {
+
+            }
+            else
+            {
+
+                <div class="container">
+                    <div class="headerBox">Backlog</div>
+                    <div class="headerBox">ToDo</div>
+                    <div class="headerBox">Working</div>
+                    <div class="headerBox">Done</div>
+                </div>
+                <div class="container">
+                    @foreach (var statusName in new[] { "Backlog", "ToDo", "Working", "Done" })
+                    {
+                        <div class="box" id="@statusName" @ondragover="() => OnDragOver(statusName)">
+                            @if (selectedBoard == null)
+                            {
+                                <p><em>Loading...</em></p>
+                            }
+                            else
+                            {
+                                @foreach (var item in selectedBoard.Items.Where(i => i.StatusItems[0].StatusName == statusName))
+                                {
+                                    int itemId = item.ItemId.Value;
+
+                                    <div class="post-it" draggable="true" @ondragend="() => OnDragEnd(item)">
+                                        <div class="title">@item.ItemName</div>
+                                        <div class="content">@item.ItemDescription</div>
+                                        <div> <button class="trashIcon" id="@itemId" @onclick="() => DeleteItem(itemId)"></button></div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+
+@code{
+    List<User> usersAvailable;
+    List<User> selectedUser;
+    List<Board> boardsAvailable;
+    Board selectedBoard;
+    string email = "";
+    int selectedUserId = -1;
+    string selectedUserEmail = null;
+    string selectedBoardName = null;
+
+    string postTitle = null;
+    string postDescription = null;
+    string postStatus = null;
+
+    int draggingOver = -1;
+
+
+
+    private static readonly Dictionary<string, int> statusNameMap = new()
+{
+    { "Backlog", 1 },
+    { "ToDo", 2 },
+    { "Working", 3 },
+    { "Done", 4 }
+};
+
+    protected override async Task OnInitializedAsync()
+    {
+        usersAvailable = await RetrieveAvailableUsers();
+    }
+
+    private async Task<List<User>> GetSelectedUserAsync(string email)
+    {
+        string encodedEmail = Uri.EscapeDataString(email);
+        var users = await Http.GetFromJsonAsync<List<User>>($"api/User/{encodedEmail}");
+        return users;
+    }
+
+    private async Task CreateNewItemButton()
+    {
+        int boardId = selectedBoard.BoardId;
+        string escapedPostTitle = Uri.EscapeDataString(postTitle);
+        string escapedPostDescription = Uri.EscapeDataString(postDescription);
+        statusNameMap.TryGetValue(postStatus, out int statusId);
+
+
+        string url = $"api/Item?itemName={escapedPostTitle}&itemDescription={escapedPostDescription}&statusId={statusId}&boardId={boardId}";
+        await Http.PostAsync(url, null);
+
+        selectedUser = await GetSelectedUserAsync(selectedUserEmail);
+        UpdateSelectedBoardAfterAddOrDelete();
+    }
+
+    private async Task<List<User>> RetrieveAvailableUsers()
+    {
+        List<User> usersAvailable = new();
+
+        usersAvailable = await Http.GetFromJsonAsync<List<User>>($"api/User");
+
+        return usersAvailable;
+    }
+
+    private async Task UpdateSelectedUser(ChangeEventArgs e)
+    {
+        boardsAvailable = null;
+        selectedUserEmail = e.Value.ToString();
+        selectedUser = await GetSelectedUserAsync(selectedUserEmail);
+        selectedUserId = selectedUser[0].UserId;
+        boardsAvailable = selectedUser[0].Boards;
+        selectedBoard = null;
+    }
+
+    private void UpdateSelectedBoard(ChangeEventArgs e)
+    {
+        selectedBoardName = e.Value.ToString();
+        UpdateSelectedBoardByName();
+    }
+
+    private void UpdateSelectedBoardAfterAddOrDelete()
+    {
+        UpdateSelectedBoardByName();
+    }
+
+    private void UpdateSelectedBoardByName()
+    {
+        foreach (var board in selectedUser[0].Boards)
+        {
+            if (board.BoardName == selectedBoardName)
+            {
+                selectedBoard = board;
+            }
+        }
+    }
+
+    private async Task DeleteItem(int itemId)
+    {
+        string url = $"api/Item/{itemId}";
+        await Http.DeleteAsync(url);
+
+        selectedUser = await GetSelectedUserAsync(selectedUserEmail);
+        UpdateSelectedBoardAfterAddOrDelete();
+    }
+
+    private async Task OnDragEnd(Item item)
+    {
+        if(item.StatusItems[0].StatusItemId != draggingOver)
+        {
+            int itemId = item.ItemId.Value;
+            int statusId = draggingOver;
+            await Http.PutAsync($"api/Item?itemId={itemId}&itemStatusId={statusId}", null);
+            selectedUser = await GetSelectedUserAsync(selectedUserEmail);
+            UpdateSelectedBoardAfterAddOrDelete();
+        }
+    }
+
+    private void OnDragOver(string statusName)
+    {
+        if (statusNameMap.TryGetValue(statusName, out int statusId))
+        {
+            draggingOver = statusId;
+        }
+    }
+
+}

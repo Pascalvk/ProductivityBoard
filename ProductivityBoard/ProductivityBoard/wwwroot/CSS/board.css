@@ -1,0 +1,118 @@
+﻿/* Algemeen container met twee kolommen */
+.split-container {
+    display: grid;
+    grid-template-columns: 250px 1fr; /* Linkerkolom 250px breed, rechterkolom de resterende ruimte */
+    height: 100vh; /* Zorgt ervoor dat de container de volledige hoogte van het scherm heeft */
+}
+
+/* Linker balk */
+.left-bar {
+    background-color: #2d4059; /* Donkere kleur voor de linkerbalk */
+    color: white; /* Witte tekst */
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between; /* Zorgt ervoor dat de inhoud netjes is verdeeld */
+    height: 100%; /* Zorgt ervoor dat de balk de volledige hoogte van de container heeft */
+}
+
+/* Rechtergedeelte van de container */
+.right-content {
+    padding: 20px;
+    overflow-y: auto; /* Zorgt ervoor dat de inhoud scrollt als deze te groot wordt */
+    background-image: url('/Icons/clouds.jpg');
+}
+
+
+
+
+.container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* 4 gelijke kolommen */
+    max-width: 1100px; /* Optioneel: Maximale breedte */
+    margin: auto; /* Centraal uitlijnen */
+}
+
+.box {
+    background-color: #90f6d7;
+    display: flex; /* Gebruik flexbox */
+    flex-direction: column; /* Plaats de items onder elkaar */
+    gap: 10px; /* Ruimte tussen de items */
+    align-items: center; /* Centreer items horizontaal */
+    border: 1px solid #333;
+    padding: 10px; /* Optioneel: ruimte binnen de box */
+}
+
+
+.space {
+    padding: 5px;
+    margin-bottom: 5px; /* Ruimte van 5px tussen de divs */
+}
+
+
+
+
+.post-it {
+    background-color: #FFEB3B; /* Gele achtergrond voor de post-it */
+    width: 200px; /* Breedte van de notitie */
+    min-height: 125px; /* Minimale hoogte, zodat er altijd voldoende ruimte is voor tekst */
+    padding: 15px; /* Ruimte rondom de inhoud */
+    font-family: 'Comic Sans MS', cursive, sans-serif; /* Typische font voor een post-it */
+    border-radius: 8px; /* Licht afgeronde hoeken */
+    box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2); /* Schaduw voor realisme */
+    position: relative;
+    display: inline-block; /* Maakt het een blok-element */
+    overflow: hidden; /* Zorgt ervoor dat tekst buiten de rand niet zichtbaar is */
+}
+
+    /* Het hoekje aan de bovenkant */
+    .post-it:before {
+        content: '';
+        position: absolute;
+        top: -10px; /* Zorgt ervoor dat het hoekje boven de Post-it uitsteekt */
+        left: 50%;
+        width: 20px;
+        height: 20px;
+        background-color: #FFEB3B; /* Gelijke kleur als de post-it */
+        transform: rotate(45deg); /* Draait het vierkantje naar een diamantvorm */
+        margin-left: -10px; /* Centraal uitlijnen */
+    }
+
+/* Titelstijl */
+.title {
+    font-weight: bold; /* Vetgedrukte titel */
+    font-size: 18px; /* Grotere tekst voor de titel */
+    margin-bottom: 10px; /* Ruimte tussen titel en de tekst */
+    text-align: center; /* Titel centreren */
+}
+
+/* Inhoud van de post-it */
+.content {
+    font-size: 14px; /* Kleinere tekst voor de inhoud */
+    text-align: left; /* Inhoud links uitlijnen */
+}
+
+
+.headerBox {
+    background-color: #35bcbf;
+    text-align: center;
+    border: 1px solid #333;
+}
+
+.trashIcon {
+    background-image: url('/Icons/trash-can.png'); /* Path to your image */
+    background-size: contain; /* Makes sure the image fits inside the button */
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 20px; /* Width of the button */
+    height: 20px; /* Height of the button */
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: inline-block; /* Makes it behave like an inline button */
+    background-color: transparent; /* Make button background transparent */
+    opacity: 1; /* Fully visible button */
+    position: absolute; /* Absolute positioning */
+    bottom: 10px; /* 10px from the bottom of the .post-it */
+    right: 10px; /* 10px from the right of the .post-it */
+}
