@@ -125,6 +125,26 @@
     </div>
 </div>
 
+@if (showErrorMessage)
+{
+    <div class="popup-overlay">
+        <div class="popup">
+            <h3>Error</h3>
+            @if(isButtonDisabled)
+            {
+                <p>You created to many post-its</p>
+                <p>timeout: @remainingTime</p>
+                <p>(This is only temp, so you cant spam items to database)</p>
+            }
+            else
+            {
+                <p>Select a status</p>
+            }            
+            <button class="button-4" @onclick="Confirm">Ok</button>
+
+        </div>
+    </div>
+}
 
 @code{
     List<User> usersAvailable;
@@ -142,6 +162,12 @@
 
     int draggingOver = -1;
 
+    bool showErrorMessage = false;
+
+    private int remainingTime = 0;
+    private int clickCount = 0;
+    private DateTime firstClickTime;
+    private bool isButtonDisabled = false;
 
 
     private static readonly Dictionary<string, int> statusNameMap = new()
@@ -154,38 +180,104 @@
 
     protected override async Task OnInitializedAsync()
     {
-        usersAvailable = await RetrieveAvailableUsers();
+        try
+        {
+            usersAvailable = await RetrieveAvailableUsers();
+        }
+        catch
+        {
+            showErrorMessage = true;
+        }
+
     }
 
     private async Task<List<User>> GetSelectedUserAsync(string email)
     {
-        string encodedEmail = Uri.EscapeDataString(email);
-        var users = await Http.GetFromJsonAsync<List<User>>($"api/User/{encodedEmail}");
-        return users;
+        try
+        {
+            string encodedEmail = Uri.EscapeDataString(email);
+            var users = await Http.GetFromJsonAsync<List<User>>($"api/User/{encodedEmail}");
+            return users;
+
+        }
+        catch
+        {
+            showErrorMessage = true;
+            List<User> users = new();
+            return users;
+        }
+
     }
 
     private async Task CreateNewItemButton()
     {
-        int boardId = selectedBoard.BoardId;
-        string escapedPostTitle = Uri.EscapeDataString(postTitle);
-        string escapedPostDescription = Uri.EscapeDataString(postDescription);
-        statusNameMap.TryGetValue(postStatus, out int statusId);
+        if (isButtonDisabled)
+        {
+            showErrorMessage = true;
+            return;
+        }
+            
 
+        if (clickCount == 0)
+        {
+            firstClickTime = DateTime.Now;
+        }
 
-        string url = $"api/Item?itemName={escapedPostTitle}&itemDescription={escapedPostDescription}&statusId={statusId}&boardId={boardId}";
-        await Http.PostAsync(url, null);
+        clickCount++;
 
-        selectedUser = await GetSelectedUserAsync(selectedUserEmail);
-        UpdateSelectedBoardAfterAddOrDelete();
+        if (clickCount >= 4 && (DateTime.Now - firstClickTime).TotalSeconds <= 10)
+        {
+            isButtonDisabled = true;
+            showErrorMessage = true;
+            remainingTime = 60;
+
+            while (remainingTime > 0)
+            {
+                await Task.Delay(1000);
+                remainingTime--;
+                StateHasChanged();
+            }
+
+            isButtonDisabled = false;
+            showErrorMessage = false;
+            clickCount = 0; 
+            return;
+        }
+
+        try
+        {
+            int boardId = selectedBoard.BoardId;
+            string escapedPostTitle = Uri.EscapeDataString(postTitle);
+            string escapedPostDescription = Uri.EscapeDataString(postDescription);
+            statusNameMap.TryGetValue(postStatus, out int statusId);
+
+            string url = $"api/Item?itemName={escapedPostTitle}&itemDescription={escapedPostDescription}&statusId={statusId}&boardId={boardId}";
+
+            await Http.PostAsync(url, null);
+            selectedUser = await GetSelectedUserAsync(selectedUserEmail);
+            UpdateSelectedBoardAfterAddOrDelete();
+        }
+        catch
+        {
+            showErrorMessage = true;
+        }
     }
 
     private async Task<List<User>> RetrieveAvailableUsers()
     {
         List<User> usersAvailable = new();
+        try
+        {
+            usersAvailable = await Http.GetFromJsonAsync<List<User>>($"api/User");
 
-        usersAvailable = await Http.GetFromJsonAsync<List<User>>($"api/User");
+            return usersAvailable;
+        }
+        catch
+        {
+            showErrorMessage = true;
+            return usersAvailable;
+        }
 
-        return usersAvailable;
     }
 
     private async Task UpdateSelectedUser(ChangeEventArgs e)
@@ -222,23 +314,39 @@
 
     private async Task DeleteItem(int itemId)
     {
-        string url = $"api/Item/{itemId}";
-        await Http.DeleteAsync(url);
+        try
+        {
+            string url = $"api/Item/{itemId}";
+            await Http.DeleteAsync(url);
 
-        selectedUser = await GetSelectedUserAsync(selectedUserEmail);
-        UpdateSelectedBoardAfterAddOrDelete();
+            selectedUser = await GetSelectedUserAsync(selectedUserEmail);
+            UpdateSelectedBoardAfterAddOrDelete();
+        }
+        catch
+        {
+            showErrorMessage = true;
+        }
+
     }
 
     private async Task OnDragEnd(Item item)
     {
-        if(item.StatusItems[0].StatusItemId != draggingOver)
+        try
         {
-            int itemId = item.ItemId.Value;
-            int statusId = draggingOver;
-            await Http.PutAsync($"api/Item?itemId={itemId}&itemStatusId={statusId}", null);
-            selectedUser = await GetSelectedUserAsync(selectedUserEmail);
-            UpdateSelectedBoardAfterAddOrDelete();
+            if (item.StatusItems[0].StatusItemId != draggingOver)
+            {
+                int itemId = item.ItemId.Value;
+                int statusId = draggingOver;
+                await Http.PutAsync($"api/Item?itemId={itemId}&itemStatusId={statusId}", null);
+                selectedUser = await GetSelectedUserAsync(selectedUserEmail);
+                UpdateSelectedBoardAfterAddOrDelete();
+            }
         }
+        catch
+        {
+            showErrorMessage = true;
+        }
+
     }
 
     private void OnDragOver(string statusName)
@@ -247,6 +355,11 @@
         {
             draggingOver = statusId;
         }
+    }
+
+    private void Confirm()
+    {
+        showErrorMessage = false;
     }
 
 }
