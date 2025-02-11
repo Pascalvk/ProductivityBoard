@@ -32,6 +32,7 @@ namespace ProductivityBoard
                 app.UseHsts();
             }
 
+
             app.UseHttpsRedirection();
 
             app.UseStaticFiles();
